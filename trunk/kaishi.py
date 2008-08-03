@@ -69,6 +69,7 @@ class P2PClient(object):
     self.fetchPeersFromProvider()
 
     print 'Now available for connections on the kaishi network as ' + self.peerid
+    print 'Type /irc to start the local IRC server, and then connect to 127.0.0.1:44546'
     print '----------------------------------------'
     
     self.getInput()
