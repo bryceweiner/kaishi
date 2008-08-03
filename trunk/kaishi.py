@@ -54,7 +54,7 @@ class P2PClient(object):
       
     self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     self.socket.bind(('', self.port))
-
+    
     print 'Entering main network loop...'
     
     thread.start_new_thread(self.receiveData, ())
@@ -93,19 +93,19 @@ class P2PClient(object):
     data = zlib.compress(data, 9)
     
     if args['to']:
-      #try:
-      self.socket.sendto(data, peerIDToTuple(args['to']))
-      #except:
-      #  self.dropPeer(args['to'])
-      #  return False
-      #return True
+      try:
+        self.socket.sendto(data, peerIDToTuple(args['to']))
+      except:
+        self.dropPeer(args['to'])
+        return False
+      return True
     else:
       for peer in self.peers:
-        #try:
-        self.socket.sendto(data, peerIDToTuple(peer))
-        #except:
-        #  self.dropPeer(peer)
-        #  return False
+        try:
+          self.socket.sendto(data, peerIDToTuple(peer))
+        except:
+          self.dropPeer(peer)
+          return False
       return True
 
   def receiveData(self):
@@ -325,8 +325,9 @@ class P2PClient(object):
     if known_nodes != '':
       known_nodes = known_nodes.split('\n')
       for known_node in known_nodes:
-        self.addPeer(known_node)
-        self.debugMessage('Added ' + known_node + ' from provider')
+        if known_node != '':
+          self.addPeer(known_node)
+          self.debugMessage('Added ' + known_node + ' from provider')
     
   def getPosts(self):
     posts = ''
