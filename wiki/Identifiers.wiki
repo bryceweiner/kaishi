@@ -3,16 +3,17 @@
 
 = Message Format =
 
-IDENTIFIER:BOUNCE:UID:MESSAGE
+IDENTIFIER:BOUNCE:UID:ORIGIN:MESSAGE
 
  * Identifier: The type of message
  * Bounce: 1 or 0 deciding whether this message should be bounced across the network after being received
  * UID: ID of the message to prevent duplicates being processed
+ * Origin: Base64 of the peerid who started the message chain
  * Message: Contents of the message
 
 = Example Message =
 
-JOIN:1:ShtIUvCJlUMl$uChTlwW2w:Scalar
+JOIN:1:ShtIUvCJlUMl$uChTlwW2w:NjcuMTY4LjUuNzo0NDU0NQ==:Scalar
 
 = Identifiers =
 
