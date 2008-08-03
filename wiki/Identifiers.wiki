@@ -10,12 +10,16 @@ IDENTIFIER:BOUNCE:UID:MESSAGE
  * UID: ID of the message to prevent duplicates being processed
  * Message: Contents of the message
 
+= Example Message =
+
+JOIN:1:ShtIUvCJlUMl$uChTlwW2w:Scalar
+
 = Identifiers =
 
 || *Identifier* || *Usage* ||
 || MSG || Simple chat message ||
 || ACTION || Same as MSG with a different display ||
-|| JOIN || Informs of a peer joining the network and prompts a send of PEERS ||
+|| JOIN || Informs of a peer joining the network by sending the nickname in the message field and prompts a send of PEERS ||
 || PEERS || List of known peers which will be processed by the receiver ||
 || NICK || Change of peer nickname ||
 || PING || Simple ping message to keep track of which peers are still online ||
