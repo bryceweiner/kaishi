@@ -66,6 +66,7 @@ class P2PClient(object):
 
   def sendData(self, identifier, message, **kwargs):
     args = {'uid': None,
+            'origin': self.peerid,
             'to': None,
             'bounce': True}
     args.update(kwargs)
@@ -81,7 +82,7 @@ class P2PClient(object):
     else:
       bounce = '0'
     
-    data = identifier + ':' + bounce + ':' + uid + ':' + message
+    data = identifier + ':' + bounce + ':' + uid + ':' + base64.encodestring(args['origin']) + ':' + message
 
     data = zlib.compress(data, 9)
     
@@ -107,8 +108,9 @@ class P2PClient(object):
       try:
         data, address = self.socket.recvfrom(65536)
         data = zlib.decompress(data)
-        peerid = address[0] + ':' + str(address[1])
-        identifier, bounce, uid, message = data.split(':', 3)
+        sender_peerid = address[0] + ':' + str(address[1])
+        identifier, bounce, uid, origin, message = data.split(':', 3)
+        peerid = base64.decodestring(origin)
       except:
         self.debugMessage('Failed to establish a connection.')
         pass
@@ -157,7 +159,7 @@ class P2PClient(object):
           self.debugMessage('Unhandled: ' + identifier + ' ' + message)
 
         if bounce == '1':
-          self.sendData(identifier, message, uid=uid)
+          self.sendData(identifier, message, uid=uid, origin=peerid)
       elif data:
         self.debugMessage('Not rerouting data: ' + data)
         
@@ -168,7 +170,7 @@ class P2PClient(object):
         if data != '':
           if data.startswith('/'):
             if data == '/q' or data == '/quit' or data == '/exit':
-              break
+              self.gracefulExit()
             elif data == '/clue':
               print 'Adding Scalar.ClueNet.org:44545 to peer list...'
               if not self.addPeer('67.18.89.26:44545'):
@@ -248,9 +250,7 @@ class P2PClient(object):
 
             self.sendData('MSG', data)
       except KeyboardInterrupt:
-        self.sendDropNotice()
-        self.socket.close()
-        sys.exit()
+        self.gracefulExit()
 
   def addPeer(self, peerid):
     result = False
@@ -324,6 +324,11 @@ class P2PClient(object):
   def debugMessage(self, message):
     if self.debug:
       print message
+
+  def gracefulExit(self):
+    self.sendDropNotice()
+    self.socket.close()
+    sys.exit()
 
 def peerIDToTuple(peerid):
   host, port = peerid.rsplit(':', 1)
