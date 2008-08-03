@@ -29,6 +29,7 @@ from tenjin.helpers import *
 
 class P2PClient(object):
   def __init__(self):
+    socket.setdefaulttimeout(5)
     self.debug = False
     self.nicks = {}
     self.pings = {}
