@@ -109,7 +109,7 @@ class P2PClient(object):
         data, address = self.socket.recvfrom(65536)
         data = zlib.decompress(data)
         sender_peerid = address[0] + ':' + str(address[1])
-        identifier, bounce, uid, origin, message = data.split(':', 3)
+        identifier, bounce, uid, origin, message = data.split(':', 4)
         peerid = base64.decodestring(origin)
       except:
         self.debugMessage('Failed to establish a connection.')
