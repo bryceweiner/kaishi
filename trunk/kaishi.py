@@ -35,8 +35,6 @@ class P2PClient(object):
     self.peers = []
     self.uidlist = []
     self.posts = []
-    self.serverhost = 'localhost'
-    self.serverport = 44545
 
     print '----------------------------------------'
     print 'kaishi pre-release alpha'
@@ -44,16 +42,17 @@ class P2PClient(object):
     print '----------------------------------------'
     print 'Initializing Peer-to-Peer network interfaces...'
 
-    self.hostname = urllib.urlopen('http://www.showmyip.com/simple/').read()
-    self.peerid = self.hostname + ':' + str(self.serverport)
+    self.host = urllib.urlopen('http://www.showmyip.com/simple/').read()
+    self.port = 44545
+    self.peerid = self.host + ':' + str(self.port)
     
     if len(sys.argv) > 1:
-      self.serverhost, self.serverport = peerIDToTuple(sys.argv[1])
-      self.serverport = int(self.serverport)
-      self.peers = [self.serverhost + ':' + str(self.serverport)]
+      self.host, self.port = peerIDToTuple(sys.argv[1])
+      self.port = int(self.port)
+      self.peers = [self.host + ':' + str(self.port)]
       
     self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    self.socket.bind(('', self.serverport))
+    self.socket.bind(('', self.port))
 
     print 'Entering main network loop...'
     
@@ -73,8 +72,7 @@ class P2PClient(object):
 
     if not args['uid']:
       uid = makeID(message)
-      if self.debug:
-        print 'Making uid for ' + message
+      self.debugMessage('Making uid for ' + message)
     else:
       uid = args['uid']
     self.uidlist.append(uid)
@@ -112,11 +110,14 @@ class P2PClient(object):
         peerid = address[0] + ':' + str(address[1])
         identifier, bounce, uid, message = data.split(':', 3)
       except:
-        if self.debug:
-          print 'Failed to establish a connection.'
+        self.debugMessage('Failed to establish a connection.')
         pass
       
       if data and uid not in self.uidlist:
+        if peerid not in self.peers and identifier != 'JOIN' and identifier != 'DROP':
+          self.addPeer(peerid)
+          self.debugMessage('Adding ' + peerid + ' from outside message')
+          
         if identifier == 'POST':
           self.posts.append(message)
           self.writeBoardPage()
@@ -130,38 +131,35 @@ class P2PClient(object):
             self.setPeerNickname(peerid, message) # add the nick sent in the JOIN message
             if self.getPeerNickname(self.peerid) != self.peerid:
               self.sendData('NICK', self.getPeerNickname(self.peerid), to=peerid, bounce=False) # send them our nick
-              if self.debug:
-                print 'Sent NICK to ' + self.getPeerNickname(peerid)
-            elif self.debug:
-              print 'Did not send NICK to ' + self.getPeerNickname(peerid)
+              self.debugMessage('Sent NICK to ' + self.getPeerNickname(peerid))
+            else:
+              self.debugMessage('Did not send NICK to ' + self.getPeerNickname(peerid))
               
             self.sendData('PEERS', self.makePeerList(), to=peerid, bounce=False)
             
-            if self.debug:
-              print self.getPeerNickname(peerid) + ' joined network'
+            self.debugMessage(self.getPeerNickname(peerid) + ' joined network')
         elif identifier == 'PEERS': # list of connected peers
           peers = pickle.loads(message)
-          for peer in peers:
+          for peer, peer_nick in peers.items():
             self.addPeer(peer)
-          if self.debug:
-            'Got peerlist from ' + peerid
+            self.setPeerNickname(peer, peer_nick)
+          self.debugMessage('Got peerlist from ' + peerid)
         elif identifier == 'DROP':
           self.dropPeer(peerid)
         elif identifier == 'PING':
           if peerid in self.pings:
             self.pings.update({peerid: time.time()})
-          if self.debug:
-            print 'Got PING from ' + peerid
+          self.debugMessage('Got PING from ' + peerid)
         elif identifier == 'NICK':
           print '* ' + self.getPeerNickname(peerid) + ' is now known as ' + message
           self.setPeerNickname(peerid, message)
-        elif self.debug:
-          print 'Unhandled: ' + identifier + ' ' + message
+        else:
+          self.debugMessage('Unhandled: ' + identifier + ' ' + message)
 
         if bounce == '1':
           self.sendData(identifier, message, uid=uid)
-      elif data and self.debug:
-        print 'Not rerouting data: ' + data
+      elif data:
+        self.debugMessage('Not rerouting data: ' + data)
         
   def getInput(self):
     while 1:
@@ -259,8 +257,7 @@ class P2PClient(object):
     if not peerid in self.peers and peerid != self.peerid:
       self.peers.append(peerid)
       result = self.sendData('JOIN', self.getPeerNickname(self.peerid)) # send our nickname in the message of JOIN
-      if self.debug:
-        print 'Added peer: ' + self.getPeerNickname(peerid)
+      self.debugMessage('Added peer: ' + self.getPeerNickname(peerid))
       if not result:
         self.dropPeer(peerid)
     return result
@@ -268,8 +265,7 @@ class P2PClient(object):
   def dropPeer(self, peerid):
     if peerid in self.peers and peerid != self.peerid:
       del self.peers[self.peers.index(peerid)]
-      if self.debug:
-        print self.getPeerNickname(peerid) + ' dropped from network'
+      self.debugMessage(self.getPeerNickname(peerid) + ' dropped from network')
         
   def getAllPeersExcept(self, exclude_peerid):
     peers = []
@@ -286,8 +282,7 @@ class P2PClient(object):
 
   def setPeerNickname(self, peerid, nickname):
     self.nicks.update({peerid: nickname})
-    if self.debug:
-      print 'Set nickname for ' + peerid + ' to ' + nickname
+    self.debugMessage('Set nickname for ' + peerid + ' to ' + nickname)
 
   def sendDropNotice(self):
     self.sendData('DROP', 'DROP')
@@ -297,8 +292,7 @@ class P2PClient(object):
       if peerid in self.pings:
         if time.time() - self.pings[peerid] >= 20:
           self.dropPeer(peerid)
-          if self.debug:
-            print 'Dropping ' + self.getPeerNickname(peerid) + ' (no ping responses for 20 seconds)'
+          self.debugMessage('Dropping ' + self.getPeerNickname(peerid) + ' (no ping responses for 20 seconds)')
       else:
         self.pings.update({peerid: time.time()})
       self.sendData('PING', 'PING', to=peerid, bounce=False)
@@ -306,7 +300,11 @@ class P2PClient(object):
     thread.start_new_thread(self.pingAllPeers, ())
 
   def makePeerList(self):
-    return pickle.dumps(self.peers)
+    peers = {}
+    for peerid in self.peers:
+      peers.update({peerid: self.getPeerNickname(peerid)})
+    
+    return pickle.dumps(peers)
     
   def getPosts(self):
     posts = ''
@@ -322,6 +320,10 @@ class P2PClient(object):
       f.write(page_rendered)
     finally:
       f.close()
+
+  def debugMessage(self, message):
+    if self.debug:
+      print message
 
 def peerIDToTuple(peerid):
   host, port = peerid.rsplit(':', 1)
