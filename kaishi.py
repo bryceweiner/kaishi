@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 #
 # P2P framework for simple, non-anonymous network
 # building from known nodes
@@ -46,6 +47,7 @@ class P2PClient(object):
 
     self.host = urllib.urlopen('http://www.showmyip.com/simple/').read()
     self.port = 44545
+    self.irc_port = 44546
     self.peerid = self.host + ':' + str(self.port)
     
     if len(sys.argv) > 1:
@@ -132,8 +134,10 @@ class P2PClient(object):
           self.writeBoardPage()
         elif identifier == 'MSG':
           print '\n<' + self.getPeerNickname(peerid) + '> ' + message
+          self.userMSG(self.getPeerNickname(peerid), message)
         elif identifier == 'ACTION':
           print '\n* ' + self.getPeerNickname(peerid) + ' ' + message
+          self.userMSG(self.getPeerNickname(peerid), message, True)
         elif identifier == 'JOIN': # a user requests that they join the network
           if peerid not in self.peers:
             self.addPeer(peerid)
@@ -154,6 +158,7 @@ class P2PClient(object):
             self.setPeerNickname(peer, peer_nick)
           self.debugMessage('Got peerlist from ' + peerid)
         elif identifier == 'DROP':
+          self.userMSG(self.getPeerNickname(peerid), 'has been dropped from the network.', True)
           self.dropPeer(peerid)
         elif identifier == 'PING':
           if peerid in self.pings:
@@ -161,6 +166,7 @@ class P2PClient(object):
           self.debugMessage('Got PING from ' + peerid)
         elif identifier == 'NICK':
           print '* ' + self.getPeerNickname(peerid) + ' is now known as ' + message
+          self.userMSG(self.getPeerNickname(peerid), 'is now known as ' + message, True)
           self.setPeerNickname(peerid, message)
         else:
           self.debugMessage('Unhandled: ' + identifier + ' ' + message)
@@ -182,8 +188,10 @@ class P2PClient(object):
               print 'Adding Scalar.ClueNet.org:44545 to peer list...'
               if not self.addPeer('67.18.89.26:44545'):
                 print 'Unable to connect to ClueNet.'
-            elif data == 'provider':
+            elif data == '/provider':
               self.getPeersFromProvider()
+            elif data == '/irc':
+              self.startIRC()
             elif data == '/local' or data == '/myid':
               print self.peerid + ' (Displayed as ' + self.getPeerNickname(self.peerid) + ')'
             elif data.startswith('/peers') or data.startswith('/peerlist'):
@@ -338,7 +346,56 @@ class P2PClient(object):
     for post in reversed(self.posts):
       posts += post + '<hr>'
     return posts
+  def startIRC(self):
+    self.irc_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    self.irc_socket.bind(('', self.irc_port))
+    self.irc_socket.listen(1)
+    thread.start_new_thread(self.handleIRC, ())
+    
+  def handleIRC(self):
+    self.irc_connection, address = self.irc_socket.accept()
+    self.rawMSG('NOTICE AUTH :kaishi ircd initialized, welcome.')
+    self.clientMSG(001, ':kaishi')
+    self.clientMSG('JOIN', ':#kaishi')
+    #self.clientMSG(353, 'kaishi = #kaishi :kaishi')
+    #self.clientMSG(366, 'kaishi #kaishi :End of /NAMES list.')
+    while 1:
+      try:
+        data = self.irc_connection.recv(1024) # receive up to 1K bytes
+        if data:
+          data = unicode(data).encode('utf-8')
+          if data.startswith('PRIVMSG #kaishi :'):
+            data = data[17:]
+            if ord(data[0]) == 1:
+              data = data[8:len(data)-2]
+              self.sendData('ACTION', data)
+            else:
+              self.sendData('MSG', data)
+        else:
+          break
+      except:
+        pass
       
+  def rawMSG(self, message):
+    try:
+      self.irc_connection.send(':kaishi!~kaishi@127.0.0.1 ' + message + '\n')
+    except:
+      pass
+
+  def userMSG(self, user, message, action=False):
+    try:
+      if action:
+        message = chr(1) + 'ACTION ' + message + chr(1)
+      self.irc_connection.send(':' + user + '!~' + user + '@127.0.0.1 PRIVMSG #kaishi :' + message + '\n')
+    except:
+      pass
+
+  def clientMSG(self, code, message):
+    try:
+      self.irc_connection.send(':kaishi!~kaishi@127.0.0.1 ' + str(code) + ' ' + message + '\n')
+    except:
+      pass
+    
   def writeBoardPage(self):
     page_rendered = renderTemplate({'posts': self.getPosts()})
     
@@ -355,6 +412,10 @@ class P2PClient(object):
   def gracefulExit(self):
     self.sendDropNotice()
     self.socket.close()
+    try:
+      self.irc_connection.close()
+    except:
+      pass
     sys.exit()
 
 def peerIDToTuple(peerid):
