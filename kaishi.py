@@ -38,31 +38,30 @@ class P2PClient(object):
     self.serverhost = 'localhost'
     self.serverport = 44545
 
+    print '----------------------------------------'
+    print 'kaishi pre-release alpha'
+    print 'If you are unfamiliar with kaishi, please type /help'
+    print '----------------------------------------'
     print 'Initializing Peer-to-Peer network interfaces...'
 
     self.hostname = urllib.urlopen('http://www.showmyip.com/simple/').read()
     self.peerid = self.hostname + ':' + str(self.serverport)
     
     if len(sys.argv) > 1:
-      self.serverhost, self.serverport = sys.argv[1].split(':')
+      self.serverhost, self.serverport = peerIDToTuple(sys.argv[1])
       self.serverport = int(self.serverport)
       self.peers = [self.serverhost + ':' + str(self.serverport)]
       
     self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     self.socket.bind(('', self.serverport))
 
-    print '--------------------'
-    print 'LOCAL PEERID: ' + self.peerid
-    print 'LOCAL CLIENT PORT: ' + str(self.serverport)
-    print '--------------------'
     print 'Entering main network loop...'
     
     thread.start_new_thread(self.receiveData, ())
     thread.start_new_thread(self.pingAllPeers, ())
 
-    print 'Now available for connections on the network.'
-    print 'If you are unfamiliar with kaishi, please type /help'
-    print '--------------------'
+    print 'Now available for connections on the kaishi network as ' + self.peerid
+    print '----------------------------------------'
     
     self.getInput()
 
@@ -89,20 +88,19 @@ class P2PClient(object):
     data = zlib.compress(data, 9)
     
     if args['to']:
-      try:
-        self.socket.sendto(data, peerIDToTuple(args['to']))
-      except:
-        self.dropPeer(args['to'])
-        return False
-      return True
+      #try:
+      self.socket.sendto(data, peerIDToTuple(args['to']))
+      #except:
+      #  self.dropPeer(args['to'])
+      #  return False
+      #return True
     else:
       for peer in self.peers:
-        host, port = peer.split(':')
-        try:
-          self.socket.sendto(data, (host, int(port)))
-        except:
-          self.dropPeer(peerid)
-          return False
+        #try:
+        self.socket.sendto(data, peerIDToTuple(peer))
+        #except:
+        #  self.dropPeer(peer)
+        #  return False
       return True
 
   def receiveData(self):
@@ -326,7 +324,9 @@ class P2PClient(object):
       f.close()
 
 def peerIDToTuple(peerid):
-  host, port = peerid.split(':')
+  host, port = peerid.rsplit(':', 1)
+  if host.startswith('['):
+    host = host[1:len(host)-1]
   return (host, int(port))
 
 def makeID(data):
