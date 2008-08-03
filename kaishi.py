@@ -1,5 +1,14 @@
 #!/usr/bin/env python
-#Doumo
+#
+# P2P framework for simple, non-anonymous network
+# building from known nodes
+#
+# tslocum@gmail.com
+# http://www.tj9991.com
+# http://code.google.com/p/kaishi/
+
+__author__ = 'Trevor "tj9991" Slocum'
+__license__ = 'GNU GPL v3'
 
 import datetime
 import md5
@@ -31,10 +40,7 @@ class P2PClient(object):
 
     print 'Initializing Peer-to-Peer network interfaces...'
 
-    site = urllib.urlopen('http://www.ippages.com/xml/').read()
-    end = site.find('</ip>')
-    start = site.find('<ip>') + 4
-    self.hostname = site[start:end]
+    self.hostname = urllib.urlopen('http://www.showmyip.com/simple/').read()
     self.peerid = self.hostname + ':' + str(self.serverport)
     
     if len(sys.argv) > 1:
@@ -55,7 +61,7 @@ class P2PClient(object):
     thread.start_new_thread(self.pingAllPeers, ())
 
     print 'Now available for connections on the network.'
-    print 'If you are unfamiliar with this program, please type /help'
+    print 'If you are unfamiliar with kaishi, please type /help'
     print '--------------------'
     
     self.getInput()
