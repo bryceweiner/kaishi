@@ -321,13 +321,16 @@ class P2PClient(object):
 
   def fetchPeersFromProvider(self):
     self.debugMessage('Fetching peers from provider')
+    added_nodes = 0
     known_nodes = urllib.urlopen(self.provider).read()
     if known_nodes != '':
       known_nodes = known_nodes.split('\n')
       for known_node in known_nodes:
         if known_node != '':
+          added_nodes += 1
           self.addPeer(known_node)
           self.debugMessage('Added ' + known_node + ' from provider')
+    print 'Found ' + str(added_nodes) + ' nodes on the provider.'
     
   def getPosts(self):
     posts = ''
