@@ -35,6 +35,7 @@ class P2PClient(object):
     self.peers = []
     self.uidlist = []
     self.posts = []
+    self.provider = 'http://vector.cluenet.org/~tj9991/provider.php'
 
     print '----------------------------------------'
     print 'kaishi pre-release alpha'
@@ -58,6 +59,11 @@ class P2PClient(object):
     
     thread.start_new_thread(self.receiveData, ())
     thread.start_new_thread(self.pingAllPeers, ())
+    thread.start_new_thread(self.pingProvider, ())
+
+    print 'Requesting known nodes from IP provider...'
+    
+    self.fetchPeersFromProvider()
 
     print 'Now available for connections on the kaishi network as ' + self.peerid
     print '----------------------------------------'
@@ -175,6 +181,8 @@ class P2PClient(object):
               print 'Adding Scalar.ClueNet.org:44545 to peer list...'
               if not self.addPeer('67.18.89.26:44545'):
                 print 'Unable to connect to ClueNet.'
+            elif data == 'provider':
+              self.getPeersFromProvider()
             elif data == '/local' or data == '/myid':
               print self.peerid + ' (Displayed as ' + self.getPeerNickname(self.peerid) + ')'
             elif data.startswith('/peers') or data.startswith('/peerlist'):
@@ -299,12 +307,26 @@ class P2PClient(object):
     time.sleep(15)
     thread.start_new_thread(self.pingAllPeers, ())
 
+  def pingProvider(self):
+    time.sleep(60)
+    urllib.urlopen(self.provider).read()
+    thread.start_new_thread(self.pingProvider, ())
+    
   def makePeerList(self):
     peers = {}
     for peerid in self.peers:
       peers.update({peerid: self.getPeerNickname(peerid)})
     
     return pickle.dumps(peers)
+
+  def fetchPeersFromProvider(self):
+    self.debugMessage('Fetching peers from provider')
+    known_nodes = urllib.urlopen(self.provider).read()
+    if known_nodes != '':
+      known_nodes = known_nodes.split('\n')
+      for known_node in known_nodes:
+        self.addPeer(known_node)
+        self.debugMessage('Added ' + known_node + ' from provider')
     
   def getPosts(self):
     posts = ''
