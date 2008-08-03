@@ -25,9 +25,6 @@ import pickle
 import thread
 import socket
 
-import tenjin
-from tenjin.helpers import *
-
 class P2PClient(object):
   def __init__(self):
     socket.setdefaulttimeout(5)
@@ -538,10 +535,10 @@ def renderTemplate(template_values={}):
     'page_navigator': '',
   }
   
-  engine = tenjin.Engine()  
-  values.update(template_values)
+  #engine = tenjin.Engine()  
+  #values.update(template_values)
   
-  return engine.render('board.html', values)
+  #return engine.render('board.html', values)
 
 if __name__=='__main__':
   p2pclient = P2PClient()
