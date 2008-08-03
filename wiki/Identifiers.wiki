@@ -1,0 +1,22 @@
+#summary List of identifiers for each message
+#labels Featured,Phase-Design
+
+= Message Format =
+
+IDENTIFIER:BOUNCE:UID:MESSAGE
+
+Identifier: The type of message
+Bounce: 1 or 0 deciding whether this message should be bounced across the network after being received
+UID: ID of the message to prevent duplicates being processed
+Message: Contents of the message
+
+= Identifiers =
+
+|| *Identifier* || *Usage* ||
+|| MSG || Simple chat message ||
+|| ACTION || Same as MSG with a different display ||
+|| JOIN || Informs of a peer joining the network and prompts a send of PEERS ||
+|| PEERS || List of known peers which will be processed by the receiver ||
+|| NICK || Change of peer nickname ||
+|| PING || Simple ping message to keep track of which peers are still online ||
+|| DROP || Drop notice of a pear leaving the network ||
