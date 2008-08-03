@@ -5,10 +5,10 @@
 
 IDENTIFIER:BOUNCE:UID:MESSAGE
 
-Identifier: The type of message
-Bounce: 1 or 0 deciding whether this message should be bounced across the network after being received
-UID: ID of the message to prevent duplicates being processed
-Message: Contents of the message
+ * Identifier: The type of message
+ * Bounce: 1 or 0 deciding whether this message should be bounced across the network after being received
+ * UID: ID of the message to prevent duplicates being processed
+ * Message: Contents of the message
 
 = Identifiers =
 
