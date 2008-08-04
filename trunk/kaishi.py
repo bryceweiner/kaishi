@@ -335,6 +335,9 @@ class P2PClient(object):
               self.sendData('ACTION', data)
             else:
               self.sendData('MSG', data)
+          elif data.startswith('PING :'):
+            ping = data[6:]
+            self.irc_connection.send('PONG :' + ping)
           elif data.startswith('PEERS') or data.startswith('PEERLIST'):
             self.callSpecialFunction('peers')
           elif data.startswith('CLEARPEERS'):
