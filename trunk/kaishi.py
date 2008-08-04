@@ -118,6 +118,8 @@ class P2PClient(object):
         sender_peerid = address[0] + ':' + str(address[1])
         identifier, bounce, uid, origin, message = data.split(':', 4)
         peerid = base64.decodestring(origin)
+      except socket.timeout:
+        pass
       except:
         self.debugMessage('Failed to establish a connection.')
         pass
@@ -141,7 +143,7 @@ class P2PClient(object):
             else:
               self.debugMessage('Did not send NICK to ' + self.getPeerNickname(peerid))
             self.sendData('PEERS', self.makePeerList(), to=peerid, bounce=False)
-            self.printMessage(message + ' has joined the network.')
+            print message + ' has joined the network.'
         elif identifier == 'PEERS': # list of connected peers
           peers = pickle.loads(message)
           for peer, peer_nick in peers.items():
@@ -149,7 +151,7 @@ class P2PClient(object):
             self.setPeerNickname(peer, peer_nick)
           self.debugMessage('Got peerlist from ' + peerid)
         elif identifier == 'DROP':
-          self.printMessage(self.getPeerNickname(peerid) + ' has dropped from the network.')
+          print self.getPeerNickname(peerid) + ' has dropped from the network.'
           self.dropPeer(peerid)
         elif identifier == 'PING':
           if peerid in self.pings:
@@ -157,7 +159,7 @@ class P2PClient(object):
           self.debugMessage('Got PING from ' + peerid)
         elif identifier == 'NICK':
           print '* ' + self.getPeerNickname(peerid) + ' is now known as ' + message
-          self.userMSG(self.getPeerNickname(peerid), 'is now known as ' + message, True)
+          self.userNick(self.getPeerNickname(peerid), message)
           self.setPeerNickname(peerid, message)
         else:
           self.debugMessage('Unhandled: ' + identifier + ' ' + message)
@@ -175,10 +177,6 @@ class P2PClient(object):
           if data.startswith('/'):
             if data == '/q' or data == '/quit' or data == '/exit':
               self.gracefulExit()
-            elif data == '/clue':
-              print 'Adding Scalar.ClueNet.org:44545 to peer list...'
-              if not self.addPeer('67.18.89.26:44545'):
-                print 'Unable to connect to ClueNet.'
             elif data == '/provider':
               self.getPeersFromProvider()
             elif data == '/irc':
@@ -205,7 +203,7 @@ class P2PClient(object):
             elif data.startswith('/debug'):
               self.debug = True
             elif data == '/help':
-              print 'Commands: /local /peers /addpeer /clearpeers /nick /clue /help /quit'
+              print 'Commands: /local /peers /addpeer /provider /clearpeers /nick /help /quit'
             else:
               print 'Unknown command.  Message discarded.'
           else:
@@ -235,14 +233,17 @@ class P2PClient(object):
       self.peers.append(peerid)
       result = self.sendData('JOIN', self.getPeerNickname(self.peerid)) # send our nickname in the message of JOIN
       self.debugMessage('Added peer: ' + self.getPeerNickname(peerid))
-      if not result:
+      if result:
+        self.userJoin(self.getPeerNickname(peerid))
+      else:
         self.dropPeer(peerid)
     return result
 
   def dropPeer(self, peerid):
     if peerid in self.peers and peerid != self.peerid:
       del self.peers[self.peers.index(peerid)]
-      self.debugMessage(self.getPeerNickname(peerid) + ' dropped from network')
+      self.userPart(self.getPeerNickname(peerid))
+      self.debugMessage(self.getPeerNickname(peerid) + ' has dropped from network')
         
   def getAllPeersExcept(self, exclude_peerid):
     peers = []
@@ -320,6 +321,8 @@ class P2PClient(object):
     self.rawMSG('JOIN #kaishi')
     self.rawMSG('353 kaishi = #kaishi :kaishi')
     self.rawMSG('366 kaishi #kaishi :End of /NAMES list')
+    for peerid in self.peers:
+      self.userJoin(self.getPeerNickname(peerid))
     while 1:
       try:
         data = self.irc_connection.recv(1024)
@@ -355,6 +358,24 @@ class P2PClient(object):
       if action:
         message = chr(1) + 'ACTION ' + message + chr(1)
       self.irc_connection.send(':' + user + '!' + user + '@127.0.0.1 PRIVMSG #kaishi :' + message + '\n')
+    except:
+      pass
+
+  def userJoin(self, user):
+    try:
+      self.irc_connection.send(':' + user + '!' + user + '@127.0.0.1 JOIN #kaishi\n')
+    except:
+      pass
+
+  def userPart(self, user):
+    try:
+      self.irc_connection.send(':' + user + '!' + user + '@127.0.0.1 PART #kaishi\n')
+    except:
+      pass
+
+  def userNick(self, user, newnick):
+    try:
+      self.irc_connection.send(':' + user + '!' + user + '@127.0.0.1 NICK ' + newnick + '\n')
     except:
       pass
 
