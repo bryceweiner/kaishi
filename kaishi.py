@@ -33,7 +33,6 @@ class P2PClient(object):
     self.pings = {}
     self.peers = []
     self.uidlist = []
-    self.posts = []
     self.provider = 'http://vector.cluenet.org/~tj9991/provider.php'
 
     print '----------------------------------------'
@@ -45,6 +44,7 @@ class P2PClient(object):
     self.host = urllib.urlopen('http://www.showmyip.com/simple/').read()
     self.port = 44545
     self.irc_port = 44546
+    self.irc_address = '127.0.0.1:' + str(self.irc_port)
     self.peerid = self.host + ':' + str(self.port)
     
     if len(sys.argv) > 1:
@@ -66,7 +66,7 @@ class P2PClient(object):
     self.fetchPeersFromProvider()
 
     print 'Now available for connections on the kaishi network as ' + self.peerid
-    print 'Type /irc to start the local IRC server, and then connect to 127.0.0.1:44546'
+    print 'Type /irc to start the local IRC server, and then connect to ' + self.irc_address
     print '----------------------------------------'
     
     self.getInput()
@@ -127,15 +127,10 @@ class P2PClient(object):
           self.addPeer(peerid)
           self.debugMessage('Adding ' + peerid + ' from outside message')
           
-        if identifier == 'POST':
-          self.posts.append(message)
-          self.writeBoardPage()
-        elif identifier == 'MSG':
-          print '\n<' + self.getPeerNickname(peerid) + '> ' + message
-          self.userMSG(self.getPeerNickname(peerid), message)
+        if identifier == 'MSG':
+          self.printChatMessage(peerid, message)
         elif identifier == 'ACTION':
-          print '\n* ' + self.getPeerNickname(peerid) + ' ' + message
-          self.userMSG(self.getPeerNickname(peerid), message, True)
+          self.printChatMessage(peerid, message, True)
         elif identifier == 'JOIN': # a user requests that they join the network
           if peerid not in self.peers:
             self.addPeer(peerid)
@@ -145,10 +140,8 @@ class P2PClient(object):
               self.debugMessage('Sent NICK to ' + self.getPeerNickname(peerid))
             else:
               self.debugMessage('Did not send NICK to ' + self.getPeerNickname(peerid))
-              
             self.sendData('PEERS', self.makePeerList(), to=peerid, bounce=False)
-            
-            self.debugMessage(self.getPeerNickname(peerid) + ' joined network')
+            self.printMessage(message + ' has joined the network.')
         elif identifier == 'PEERS': # list of connected peers
           peers = pickle.loads(message)
           for peer, peer_nick in peers.items():
@@ -156,7 +149,7 @@ class P2PClient(object):
             self.setPeerNickname(peer, peer_nick)
           self.debugMessage('Got peerlist from ' + peerid)
         elif identifier == 'DROP':
-          self.userMSG(self.getPeerNickname(peerid), 'has been dropped from the network.', True)
+          self.printMessage(self.getPeerNickname(peerid) + ' has dropped from the network.')
           self.dropPeer(peerid)
         elif identifier == 'PING':
           if peerid in self.pings:
@@ -190,12 +183,11 @@ class P2PClient(object):
               self.getPeersFromProvider()
             elif data == '/irc':
               self.startIRC()
+              print 'IRC server started at ' + self.irc_address
             elif data == '/local' or data == '/myid':
               print self.peerid + ' (Displayed as ' + self.getPeerNickname(self.peerid) + ')'
             elif data.startswith('/peers') or data.startswith('/peerlist'):
-              print str(len(self.peers)) + ' other peers in current scope.'
-              for peerid in self.peers:
-                print self.getPeerNickname(peerid)
+              self.callSpecialFunction('peers')
             elif data.startswith('/add') or data.startswith('/addpeer'):
               command, peerid = data.split(' ')
               if self.addPeer(peerid):
@@ -204,12 +196,9 @@ class P2PClient(object):
                 print 'Unable to establish connection with peer.'
             elif data.startswith('/nick'):
              command, nick = data.split(' ', 1)
-             self.setPeerNickname(self.peerid, nick)
-             self.sendData('NICK', nick)
+             self.callSpecialFunction('nick', nick)
             elif data.startswith('/clearpeers'):
-              for peerid in self.peers:
-                self.dropPeer(peerid)
-              print 'Cleared peer list.'
+              self.callSpecialFunction('clearpeers')
             elif data.startswith('/me') or data.startswith('/action'):
              command, action = data.split(' ', 1)
              self.sendData('ACTION', action)
@@ -220,53 +209,25 @@ class P2PClient(object):
             else:
               print 'Unknown command.  Message discarded.'
           else:
-            t = datetime.datetime.now()
-            date = t.strftime("%y/%m/%d(%a)%H:%M:%S")
-
-            post_filename = None
-            post_message = data
-            post_filedata = ''
-            post_img = ''
-            filename = None
-            message = data
-
-            if data.startswith('"'):
-              end = data.find('"', 1)
-              if end != -1:
-                filename = data[1:end]
-                message = data[end+2:]
-
-            try:
-              if os.path.isfile(filename):
-                post_filename = filename
-                post_message = message
-            except:
-              pass
-            if post_filename:
-              f = open(post_filename)
-              try:
-                post_filedata_io_base64 = StringIO.StringIO()
-                base64.encode(f, post_filedata_io_base64)
-                post_filedata_base64 = post_filedata_io_base64.getvalue()
-                post_filedata = base64.decodestring(post_filedata_base64)
-                post_filedata_base64 = base64.urlsafe_b64encode(post_filedata)
-              finally:
-                f.close()
-
-            if post_filedata:
-              content_type, width, height = getImageInfo(post_filedata)
-              if content_type in ['image/png', 'image/jpeg', 'image/gif']:
-                post_img = 'data:' + content_type + ';base64,' + post_filedata_base64
-              else:
-                print 'Unknown filetype: ' + content_type + str(width)
-            
-            self.posts.append(buildPost(post_img, message, date, makeID(message)))
-            #self.writeBoardPage()
-
             self.sendData('MSG', data)
+            
       except KeyboardInterrupt:
         self.gracefulExit()
-
+  
+  def callSpecialFunction(self, function, data=''):
+    if function == 'peers':
+      self.printMessage(str(len(self.peers)) + ' other peers in current scope.')
+      for peerid in self.peers:
+        self.printMessage(self.getPeerNickname(peerid))
+    elif function == 'clearpeers':
+      for peerid in self.peers:
+        self.dropPeer(peerid)
+      self.printMessage('Cleared peer list.')
+    elif function == 'nick':
+      self.setPeerNickname(self.peerid, data)
+      self.sendData('NICK', data)
+      self.printMessage('You are now known as ' + data)
+      
   def addPeer(self, peerid):
     result = False
     if not peerid in self.peers and peerid != self.peerid:
@@ -337,13 +298,8 @@ class P2PClient(object):
           added_nodes += 1
           self.addPeer(known_node)
           self.debugMessage('Added ' + known_node + ' from provider')
-    print 'Found ' + str(added_nodes) + ' nodes on the provider.'
-    
-  def getPosts(self):
-    posts = ''
-    for post in reversed(self.posts):
-      posts += post + '<hr>'
-    return posts
+    self.printMessage('Found ' + str(added_nodes) + ' nodes on the provider.')
+  
   def startIRC(self):
     self.irc_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     self.irc_socket.bind(('', self.irc_port))
@@ -351,15 +307,19 @@ class P2PClient(object):
     thread.start_new_thread(self.handleIRC, ())
     
   def handleIRC(self):
-    self.irc_connection, address = self.irc_socket.accept()
+    while 1:
+      try:
+        self.irc_connection, address = self.irc_socket.accept()
+        break
+      except socket.timeout:
+        pass
+      
     self.rawMSG('NOTICE AUTH :kaishi ircd initialized, welcome.')
     self.clientMSG(001, ':kaishi')
     self.clientMSG('JOIN', ':#kaishi')
-    #self.clientMSG(353, 'kaishi = #kaishi :kaishi')
-    #self.clientMSG(366, 'kaishi #kaishi :End of /NAMES list.')
     while 1:
       try:
-        data = self.irc_connection.recv(1024) # receive up to 1K bytes
+        data = self.irc_connection.recv(1024)
         if data:
           data = unicode(data).encode('utf-8')
           if data.startswith('PRIVMSG #kaishi :'):
@@ -369,6 +329,13 @@ class P2PClient(object):
               self.sendData('ACTION', data)
             else:
               self.sendData('MSG', data)
+          elif data.startswith('PEERS'):
+            self.callSpecialFunction('peers')
+          elif data.startswith('CLEARPEERS'):
+            self.callSpecialFunction('clearpeers')
+          elif data.startswith('NICK :'):
+            nick = data[6:]
+            self.callSpecialFunction('nick', nick)
         else:
           break
       except:
@@ -394,15 +361,18 @@ class P2PClient(object):
     except:
       pass
     
-  def writeBoardPage(self):
-    page_rendered = renderTemplate({'posts': self.getPosts()})
+  def printChatMessage(self, peerid, message, action=False):
+    if not action:
+      print '\n<' + self.getPeerNickname(peerid) + '> ' + message
+      self.userMSG(self.getPeerNickname(peerid), message)
+    else:
+      print '\n* ' + self.getPeerNickname(peerid) + ' ' + message
+      self.userMSG(self.getPeerNickname(peerid), message, True)
     
-    f = open('p2pib.html', 'w')
-    try:
-      f.write(page_rendered)
-    finally:
-      f.close()
-
+  def printMessage(self, message):
+    print message
+    self.userMSG('KAISHI', message)
+    
   def debugMessage(self, message):
     if self.debug:
       print message
@@ -427,118 +397,6 @@ def makeID(data):
   m.update(str(time.time()))
   m.update(str(data))
   return base64.encodestring(m.digest())[:-3].replace('/', '$')
-
-def buildPost(image, message, date, uid):
-  post = '<table>' + \
-  '  <tbody>' + \
-  '    <tr>' + \
-  '      <td class="doubledash">' + \
-  '        &gt;&gt;' + \
-  '      </td>' + \
-  '      <td class="reply" id="reply' + uid + '">' + \
-  '        <a name="' + uid + '"></a>' + \
-  '        <label>' + \
-  '          <input type="checkbox" name="delete" value="' + uid + '">' + \
-  '          ' + date + \
-  '        </label>' + \
-  '        <span class="reflink">' + \
-  '          <a href="#' + uid + '">No.</a>' + \
-  '          <a href="#i' + uid + '">' + uid + '</a>' + \
-  '        </span>'
-  if image:
-    post += '        <span id="thumb' + uid + '"><img src="' + image + '" alt="' + uid + '" class="thumb"></span>'
-  post += '        <blockquote>' + \
-  '          ' + message + \
-  '        </blockquote>' + \
-  '      </td>' + \
-  '    </tr>' + \
-  '  </tbody>' + \
-  '</table>'
-
-  return post
-
-def getImageInfo(data):
-  data = str(data)
-  size = len(data)
-  height = -1
-  width = -1
-  content_type = ''
-
-  # handle GIFs
-  if (size >= 10) and data[:6] in ('GIF87a', 'GIF89a'):
-    # Check to see if content_type is correct
-    content_type = 'image/gif'
-    w, h = struct.unpack("<HH", data[6:10])
-    width = int(w)
-    height = int(h)
-
-  # See PNG 2. Edition spec (http://www.w3.org/TR/PNG/)
-  # Bytes 0-7 are below, 4-byte chunk length, then 'IHDR'
-  # and finally the 4-byte width, height
-  elif ((size >= 24) and data.startswith('\211PNG\r\n\032\n')
-        and (data[12:16] == 'IHDR')):
-    content_type = 'image/png'
-    w, h = struct.unpack(">LL", data[16:24])
-    width = int(w)
-    height = int(h)
-
-  # Maybe this is for an older PNG version.
-  elif (size >= 16) and data.startswith('\211PNG\r\n\032\n'):
-    # Check to see if we have the right content type
-    content_type = 'image/png'
-    w, h = struct.unpack(">LL", data[8:16])
-    width = int(w)
-    height = int(h)
-
-  # handle JPEGs
-  elif (size >= 2) and data.startswith('\377\330'):
-    content_type = 'image/jpeg'
-    jpeg = StringIO.StringIO(data)
-    jpeg.read(2)
-    b = jpeg.read(1)
-    try:
-      while (b and ord(b) != 0xDA):
-        while (ord(b) != 0xFF): b = jpeg.read
-        while (ord(b) == 0xFF): b = jpeg.read(1)
-        if (ord(b) >= 0xC0 and ord(b) <= 0xC3):
-          jpeg.read(3)
-          h, w = struct.unpack(">HH", jpeg.read(4))
-          break
-        else:
-          jpeg.read(int(struct.unpack(">H", jpeg.read(2))[0])-2)
-        b = jpeg.read(1)
-      try:
-        width = int(w)
-        height = int(h)
-      except:
-        pass
-    except struct.error:
-      pass
-    except ValueError:
-      pass
-
-  return content_type, width, height
-
-def renderTemplate(template_values={}):
-  values = {
-    'title': 'P2P Imageboard',
-    'board': None,
-    'board_name': None,
-    'is_page': 'false',
-    'replythread': 0,
-    'anonymous': None,
-    'forced_anonymous': None,
-    'disable_subject': None,
-    'tripcode_character': None,
-    'default_style': 'Futaba',
-    'unique_user_posts': None,
-    'page_navigator': '',
-  }
-  
-  #engine = tenjin.Engine()  
-  #values.update(template_values)
-  
-  #return engine.render('board.html', values)
 
 if __name__=='__main__':
   p2pclient = P2PClient()
