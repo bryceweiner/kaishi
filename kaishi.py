@@ -91,7 +91,7 @@ class P2PClient(object):
     
     data = identifier + ':' + bounce + ':' + uid + ':' + base64.encodestring(args['origin']) + ':' + message
 
-    data = zlib.compress(data, 9)
+    data = zlib.compress(unicode(data), 9)
     
     if args['to']:
       try:
@@ -224,9 +224,10 @@ class P2PClient(object):
         self.dropPeer(peerid)
       self.printMessage('Cleared peer list.')
     elif function == 'nick':
-      self.setPeerNickname(self.peerid, data)
-      self.sendData('NICK', data)
-      self.printMessage('You are now known as ' + data)
+      if 'kaishi' not in data:
+        self.setPeerNickname(self.peerid, data)
+        self.sendData('NICK', data)
+        self.printMessage('You are now known as ' + data)
       
   def addPeer(self, peerid):
     result = False
@@ -314,14 +315,18 @@ class P2PClient(object):
       except socket.timeout:
         pass
       
-    self.rawMSG('NOTICE AUTH :kaishi ircd initialized, welcome.')
-    self.clientMSG(001, ':kaishi')
-    self.clientMSG('JOIN', ':#kaishi')
+    self.rawMSG('NOTICE AUTH :connected to the local kaishi irc server.')
+    self.clientMSG(001, 'kaishi')
+    #self.clientMSG('JOIN', '#kaishi')
+    self.rawMSG('JOIN #kaishi')
+    self.rawMSG('353 kaishi = #kaishi :kaishi')
+    self.rawMSG('366 kaishi #kaishi :End of /NAMES list')
     while 1:
       try:
         data = self.irc_connection.recv(1024)
         if data:
           data = unicode(data).encode('utf-8')
+          print data
           if data.startswith('PRIVMSG #kaishi :'):
             data = data[17:]
             if ord(data[0]) == 1:
@@ -329,7 +334,7 @@ class P2PClient(object):
               self.sendData('ACTION', data)
             else:
               self.sendData('MSG', data)
-          elif data.startswith('PEERS'):
+          elif data.startswith('PEERS') or data.startswith('PEERLIST'):
             self.callSpecialFunction('peers')
           elif data.startswith('CLEARPEERS'):
             self.callSpecialFunction('clearpeers')
@@ -343,7 +348,7 @@ class P2PClient(object):
       
   def rawMSG(self, message):
     try:
-      self.irc_connection.send(':kaishi!~kaishi@127.0.0.1 ' + message + '\n')
+      self.irc_connection.send(':kaishi!kaishi@127.0.0.1 ' + message + '\n')
     except:
       pass
 
@@ -351,13 +356,13 @@ class P2PClient(object):
     try:
       if action:
         message = chr(1) + 'ACTION ' + message + chr(1)
-      self.irc_connection.send(':' + user + '!~' + user + '@127.0.0.1 PRIVMSG #kaishi :' + message + '\n')
+      self.irc_connection.send(':' + user + '!' + user + '@127.0.0.1 PRIVMSG #kaishi :' + message + '\n')
     except:
       pass
 
   def clientMSG(self, code, message):
     try:
-      self.irc_connection.send(':kaishi!~kaishi@127.0.0.1 ' + str(code) + ' ' + message + '\n')
+      self.irc_connection.send(':kaishi!kaishi@127.0.0.1 ' + str(code) + ' ' + message + '\n')
     except:
       pass
     
