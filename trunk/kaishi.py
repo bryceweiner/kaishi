@@ -317,7 +317,6 @@ class P2PClient(object):
       
     self.rawMSG('NOTICE AUTH :connected to the local kaishi irc server.')
     self.clientMSG(001, 'kaishi')
-    #self.clientMSG('JOIN', '#kaishi')
     self.rawMSG('JOIN #kaishi')
     self.rawMSG('353 kaishi = #kaishi :kaishi')
     self.rawMSG('366 kaishi #kaishi :End of /NAMES list')
@@ -326,7 +325,6 @@ class P2PClient(object):
         data = self.irc_connection.recv(1024)
         if data:
           data = unicode(data).encode('utf-8')
-          print data
           if data.startswith('PRIVMSG #kaishi :'):
             data = data[17:]
             if ord(data[0]) == 1:
