@@ -108,7 +108,6 @@ class kaishi(object):
         if identifier == 'JOIN': # a user requests that they join the network
           self.addPeer(peerid)
           self.setPeerNickname(peerid, message) # add the nick sent in the JOIN message
-          print 'setting peer nickname of ' + peerid + ' to ' + message
           self.sendData('PEERS', self.makePeerList(), to=peerid, bounce=False)
         elif identifier == 'PEERS': # list of connected peers
           peers = pickle.loads(message)
