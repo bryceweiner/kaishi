@@ -11,16 +11,12 @@
 __author__ = 'Trevor "tj9991" Slocum'
 __license__ = 'GNU GPL v3'
 
-import datetime
 import md5
 import time
 import base64
 import sys
-import os
 import urllib
 import zlib
-import struct
-import StringIO
 import pickle
 import thread
 import socket
@@ -96,7 +92,7 @@ class kaishi(object):
       try:
         data, address = self.socket.recvfrom(65536)
         data = zlib.decompress(data)
-        sender_peerid = address[0] + ':' + str(address[1])
+        bouncer_peerid = address[0] + ':' + str(address[1]) # peerid of the last bounce
         identifier, bounce, uid, origin, message = data.split(':', 4)
         peerid = base64.decodestring(origin)
       except socket.timeout:

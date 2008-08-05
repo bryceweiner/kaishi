@@ -35,7 +35,7 @@ class kaishiChat(object):
     self.kaishi.handleDroppedPeer = self.handleDroppedPeer
     
     if len(sys.argv) > 1: # peerid supplied by command line
-      self.host, self.port = peerIDToTuple(sys.argv[1])
+      self.host, self.port = self.kaishi.peerIDToTuple(sys.argv[1])
       self.port = int(self.port)
       self.kaishi.peers = [self.host + ':' + str(self.port)]
 
@@ -56,7 +56,7 @@ class kaishiChat(object):
       self.printChatMessage(peerid, message, True)
 
   def handleAddedPeer(self, peerid):
-    print message + ' has joined the network.'
+    print peerid + ' has joined the network.'
     self.userJoin(self.kaishi.getPeerNickname(peerid))
 
   def handlePeerNickname(self, peerid, nick):
