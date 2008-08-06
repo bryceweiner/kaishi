@@ -68,7 +68,7 @@ class kaishi(object):
     
     data = identifier + ':' + bounce + ':' + uid + ':' + base64.encodestring(args['origin']) + ':' + message
 
-    data = zlib.compress(unicode(data), 9)
+    data = zlib.compress(unicode(data).replace('\n', ''), 9)
     
     if args['to']:
       try:
@@ -110,11 +110,14 @@ class kaishi(object):
           self.setPeerNickname(peerid, message) # add the nick sent in the JOIN message
           self.sendData('PEERS', self.makePeerList(), to=peerid, bounce=False)
         elif identifier == 'PEERS': # list of connected peers
-          peers = pickle.loads(message)
-          for peer, peer_nick in peers.items():
-            self.addPeer(peer)
-            self.setPeerNickname(peer, peer_nick)
-          self.debugMessage('Got peerlist from ' + peerid)
+          try:
+            peers = pickle.loads(message)
+            for peer, peer_nick in peers.items():
+              self.addPeer(peer)
+              self.setPeerNickname(peer, peer_nick)
+            self.debugMessage('Got peerlist from ' + peerid)
+          except:
+            pass
         elif identifier == 'DROP':
           self.dropPeer(peerid)
         elif identifier == 'PING':
