@@ -155,6 +155,7 @@ class kaishiChat(object):
         data = self.irc_connection.recv(1024)
         if data:
           data = unicode(data).encode('utf-8')
+          print data.lower()
           if data.startswith('PRIVMSG #kaishi :'):
             data = data[17:]
             if ord(data[0]) == 1:
@@ -162,15 +163,17 @@ class kaishiChat(object):
               self.kaishi.sendData('ACTION', data)
             else:
               self.kaishi.sendData('MSG', data)
-          elif data.startswith('PING :'):
+          elif data.lower().startswith('ping :'):
             ping = data[6:]
             self.irc_connection.send('PONG :' + ping)
-          elif data.startswith('PEERS') or data.startswith('PEERLIST'):
+          elif data.lower().startswith('peers') or data.lower().startswith('peerlist'):
             self.callSpecialFunction('peers')
-          elif data.startswith('CLEARPEERS'):
+          elif data.lower().startswith('clearpeers'):
             self.callSpecialFunction('clearpeers')
-          elif data.startswith('NICK :'):
-            nick = data[6:]
+          elif data.lower().startswith('nick '):
+            nick = data[5:]
+            if nick.startswith(':'):
+              nick = data[1:]
             self.callSpecialFunction('nick', nick)
         else:
           break
