@@ -25,12 +25,13 @@ class kaishi(object):
   def __init__(self):
     # Set all defaults
     socket.setdefaulttimeout(5)
+    self.protocol_version = 1
     self.debug = False
     self.nicks = {}
     self.pings = {}
     self.peers = []
     self.uidlist = []
-    self.provider = 'http://vector.cluenet.org/~tj9991/provider.php'
+    self.provider = ''
     self.host = urllib.urlopen('http://www.showmyip.com/simple/').read()
     self.port = 44545
     self.peerid = self.host + ':' + str(self.port)
@@ -65,10 +66,11 @@ class kaishi(object):
       bounce = '1'
     else:
       bounce = '0'
-    
-    data = identifier + ':' + bounce + ':' + uid + ':' + base64.encodestring(args['origin']) + ':' + message
 
-    data = zlib.compress(unicode(data).replace('\n', ''), 9)
+    message = message.replace('\n', '').strip()
+
+    data = ':'.join([str(self.protocol_version), identifier, bounce, uid, self.encodeTransitSafePeerID(args['origin']), message])
+    data = zlib.compress(unicode(data), 9)
     
     if args['to']:
       try:
@@ -92,9 +94,11 @@ class kaishi(object):
       try:
         data, address = self.socket.recvfrom(65536)
         data = zlib.decompress(data)
+        
         bouncer_peerid = address[0] + ':' + str(address[1]) # peerid of the last bounce
-        identifier, bounce, uid, origin, message = data.split(':', 4)
-        peerid = base64.decodestring(origin)
+        
+        protocol_version, identifier, bounce, uid, origin, message = data.split(':', 5)
+        peerid = self.decodeTransitSafePeerID(origin) # peerid which sent the original message
       except socket.timeout:
         pass
       except:
@@ -200,8 +204,9 @@ class kaishi(object):
 
   def pingProvider(self):
     time.sleep(60)
-    urllib.urlopen(self.provider).read()
-    thread.start_new_thread(self.pingProvider, ())
+    if self.provider != '':
+      urllib.urlopen(self.provider).read()
+      thread.start_new_thread(self.pingProvider, ())
     
   def makePeerList(self):
     peers = {}
@@ -212,15 +217,18 @@ class kaishi(object):
 
   def fetchPeersFromProvider(self):
     self.debugMessage('Fetching peers from provider')
-    added_nodes = 0
-    known_nodes = urllib.urlopen(self.provider).read()
-    if known_nodes != '':
-      known_nodes = known_nodes.split('\n')
-      for known_node in known_nodes:
-        if known_node != '':
-          added_nodes += 1
-          self.addPeer(known_node)
-          self.debugMessage('Added ' + known_node + ' from provider')
+    if self.provider != '':
+      added_nodes = 0
+      known_nodes = urllib.urlopen(self.provider).read()
+      if known_nodes != '':
+        known_nodes = known_nodes.split('\n')
+        for known_node in known_nodes:
+          if known_node != '':
+            added_nodes += 1
+            self.addPeer(known_node)
+            self.debugMessage('Added ' + known_node + ' from provider')
+    else:
+      self.debugMessage('No provider is currently set')
 
   def debugMessage(self, message):
     if self.debug:
@@ -236,6 +244,12 @@ class kaishi(object):
     if host.startswith('['):
       host = host[1:len(host)-1]
     return (host, int(port))
+
+  def encodeTransitSafePeerID(self, peerid):
+    return peerid.replace(':', '?')
+
+  def decodeTransitSafePeerID(self, peerid):
+    return peerid.replace('?', ':')
 
   def makeID(self, data):
     m = md5.new()
