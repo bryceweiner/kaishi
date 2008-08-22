@@ -239,19 +239,23 @@ class kaishi(object):
     self.socket.close()
     sys.exit()
 
-  def peerIDToTuple(self, peerid):
+  @staticmethod
+  def peerIDToTuple(peerid):
     host, port = peerid.rsplit(':', 1)
     if host.startswith('['):
       host = host[1:len(host)-1]
     return (host, int(port))
 
-  def encodeTransitSafePeerID(self, peerid):
+  @staticmethod
+  def encodeTransitSafePeerID(peerid):
     return peerid.replace(':', '?')
 
-  def decodeTransitSafePeerID(self, peerid):
+  @staticmethod
+  def decodeTransitSafePeerID(peerid):
     return peerid.replace('?', ':')
 
-  def makeID(self, data):
+  @staticmethod
+  def makeID(data):
     m = md5.new()
     m.update(str(time.time()))
     m.update(str(data))
