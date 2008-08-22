@@ -3,8 +3,9 @@
 
 = Message Format =
 
-IDENTIFIER:BOUNCE:UID:ORIGIN:MESSAGE
+PROTOCOL:IDENTIFIER:BOUNCE:UID:ORIGIN:MESSAGE
 
+ * Protocol: Integer representing protocol version
  * Identifier: The type of message
  * Bounce: 1 or 0 deciding whether this message should be bounced across the network after being received
  * UID: ID of the message to prevent duplicates being processed
@@ -13,7 +14,7 @@ IDENTIFIER:BOUNCE:UID:ORIGIN:MESSAGE
 
 = Example Message =
 
-JOIN:1:ShtIUvCJlUMl$uChTlwW2w:NjcuMTY4LjUuNzo0NDU0NQ==:Scalar
+1:JOIN:1:ShtIUvCJlUMl$uChTlwW2w:NjcuMTY4LjUuNzo0NDU0NQ==:Scalar
 
 = Identifiers =
 
