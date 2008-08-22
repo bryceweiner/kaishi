@@ -79,7 +79,7 @@ class kaishiChat(object):
             if data == '/q' or data == '/quit' or data == '/exit':
               self.gracefulExit()
             elif data == '/provider':
-              self.kaishi.getPeersFromProvider()
+              self.kaishi.fetchPeersFromProvider()
             elif data == '/irc':
               self.startIRC()
               print 'IRC server started at ' + self.irc_address
@@ -109,7 +109,6 @@ class kaishiChat(object):
               print 'Unknown command.  Message discarded.'
           else:
             self.kaishi.sendData('MSG', data)
-            
       except KeyboardInterrupt:
         self.gracefulExit()
   
@@ -222,11 +221,12 @@ class kaishiChat(object):
     
   def printChatMessage(self, peerid, message, action=False):
     if not action:
-      print '\n<' + self.kaishi.getPeerNickname(peerid) + '> ' + message
-      self.userMSG(self.kaishi.getPeerNickname(peerid), message)
+      print '\n<' + self.kaishi.getPeerNickname(peerid) + '>'
     else:
-      print '\n* ' + self.kaishi.getPeerNickname(peerid) + ' ' + message
-      self.userMSG(self.kaishi.getPeerNickname(peerid), message, True)
+      print '\n* ' + self.kaishi.getPeerNickname(peerid)
+
+    print ' ' + message
+    self.userMSG(self.kaishi.getPeerNickname(peerid), message, action)
     
   def printMessage(self, message):
     print message
