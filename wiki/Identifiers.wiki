@@ -25,4 +25,4 @@ PROTOCOL:IDENTIFIER:BOUNCE:UID:ORIGIN:MESSAGE
 || PEERS || List of known peers which will be processed by the receiver ||
 || NICK || Change of peer nickname ||
 || PING || Simple ping message to keep track of which peers are still online ||
-|| DROP || Drop notice of a pear leaving the network ||
+|| DROP || Drop notice of a peer leaving the network ||
