@@ -36,6 +36,7 @@ class kaishi(object):
     self.port = 44545
     self.peerid = self.host + ':' + str(self.port)
 
+    # function hooks
     self.handleIncomingData = None
     self.handleAddedPeer = None
     self.handlePeerNickname = None
@@ -73,21 +74,20 @@ class kaishi(object):
     data = zlib.compress(unicode(data), 9)
     
     if args['to']:
-      try:
-        self.socket.sendto(data, self.peerIDToTuple(args['to']))
-      except:
-        self.dropPeer(args['to'])
-        return False
-      return True
+      recipients = [args['to']]
     else:
-      for peer in self.peers:
-        try:
-          self.socket.sendto(data, self.peerIDToTuple(peer))
-        except:
-          self.dropPeer(peer)
+      recipients = self.peers
+
+    for peer in recipients: 
+      try:
+        self.socket.sendto(data, self.peerIDToTuple(peer))
+      except:
+        # something went wrong, drop the peer
+        self.dropPeer(peer)
+        if args['to']:
           return False
       return True
-
+    
   def receiveData(self):
     while 1:
       data = None
@@ -109,6 +109,7 @@ class kaishi(object):
         if peerid not in self.peers and identifier != 'JOIN' and identifier != 'DROP':
           self.addPeer(peerid)
           self.debugMessage('Adding ' + peerid + ' from outside message')
+          
         if identifier == 'JOIN': # a user requests that they join the network
           self.addPeer(peerid)
           self.setPeerNickname(peerid, message) # add the nick sent in the JOIN message
@@ -116,9 +117,7 @@ class kaishi(object):
         elif identifier == 'PEERS': # list of connected peers
           try:
             peers = pickle.loads(message)
-            for peer, peer_nick in peers.items():
-              self.addPeer(peer)
-              self.setPeerNickname(peer, peer_nick)
+            [self.addPeer(peer, peer_nick) for peer, peer_nick in peers.items()]
             self.debugMessage('Got peerlist from ' + peerid)
           except:
             pass
@@ -138,10 +137,13 @@ class kaishi(object):
       elif data:
         self.debugMessage('Not rerouting data: ' + data)
 
-  def addPeer(self, peerid):
+  def addPeer(self, peerid, peer_nick=''):
     result = False
     if not peerid in self.peers and peerid != self.peerid:
       self.peers.append(peerid)
+      if peer_nick != '':
+        self.setPeerNickname(peerid, peer_nick)
+        
       result = self.sendData('JOIN', self.getPeerNickname(self.peerid)) # send our nickname in the message of JOIN
       self.debugMessage('Added peer: ' + self.getPeerNickname(peerid))
       if not result:
@@ -210,8 +212,7 @@ class kaishi(object):
     
   def makePeerList(self):
     peers = {}
-    for peerid in self.peers:
-      peers.update({peerid: self.getPeerNickname(peerid)})
+    [peers.update({peerid: self.getPeerNickname(peerid)}) for peerid in self.peers]
     
     return pickle.dumps(peers)
 
