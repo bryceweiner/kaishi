@@ -45,6 +45,7 @@ class kaishi(object):
   def start(self):
     self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     self.socket.bind(('', self.port))
+    self.socket.settimeout(5)
     thread.start_new_thread(self.receiveData, ())
     thread.start_new_thread(self.pingAllPeers, ())
     thread.start_new_thread(self.pingProvider, ())
@@ -59,7 +60,7 @@ class kaishi(object):
 
     if not args['uid']:
       uid = self.makeID(message)
-      self.debugMessage('Making uid for ' + message)
+      self.debugMessage('Making uid for ' + identifier + ' ' + repr(args))
     else:
       uid = args['uid']
     self.uidlist.append(uid)
@@ -83,10 +84,11 @@ class kaishi(object):
         self.socket.sendto(data, self.peerIDToTuple(peer))
       except:
         # something went wrong, drop the peer
+        self.debugMessage('Dropping ' + peer + ' due to a connection error')
         self.dropPeer(peer)
         if args['to']:
           return False
-      return True
+    return True
     
   def receiveData(self):
     while 1:
@@ -145,8 +147,11 @@ class kaishi(object):
         self.setPeerNickname(peerid, peer_nick)
         
       result = self.sendData('JOIN', self.getPeerNickname(self.peerid)) # send our nickname in the message of JOIN
-      self.debugMessage('Added peer: ' + self.getPeerNickname(peerid))
-      if not result:
+      self.debugMessage('Adding peer: ' + self.getPeerNickname(peerid))
+      if result:
+        self.debugMessage('Successfully added ' + self.getPeerNickname(peerid))
+      else:
+        self.debugMessage('Could not connect to ' + self.getPeerNickname(peerid))
         self.dropPeer(peerid)
         
     try:
@@ -221,19 +226,24 @@ class kaishi(object):
     if self.provider != '':
       added_nodes = 0
       known_nodes = urllib.urlopen(self.provider).read()
-      if known_nodes != '':
-        known_nodes = known_nodes.split('\n')
-        for known_node in known_nodes:
-          if known_node != '':
-            added_nodes += 1
-            self.addPeer(known_node)
-            self.debugMessage('Added ' + known_node + ' from provider')
+      if known_nodes.startswith('?'):
+        if len(known_nodes) > 1:
+          known_nodes = known_nodes[1:].split('\n')
+          for known_node in known_nodes:
+            if known_node != '':
+              added_nodes += 1
+              self.addPeer(known_node)
+              self.debugMessage('Added ' + known_node + ' from provider')
+        else:
+          self.debugMessage('Provider returned zero peers.  You are all alone...')
+      else:
+        self.debugMessage('Provider returned an invalid result (first character was not "?")')
     else:
       self.debugMessage('No provider is currently set')
 
   def debugMessage(self, message):
     if self.debug:
-      print message
+      print "DEBUG:", message
       
   def gracefulExit(self):
     self.sendDropNotice()

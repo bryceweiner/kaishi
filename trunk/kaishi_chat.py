@@ -29,7 +29,7 @@ class kaishiChat(object):
     print 'Initializing kaishi...'
 
     self.kaishi = kaishi()
-    self.kaishi.provider = 'http://scalar.cluenet.org/~tj9991/provider.php' # kaishi chat provider
+    self.kaishi.provider = 'http://p2p.paq.cc/provider.php' # kaishi chat provider
     self.kaishi.handleIncomingData = self.handleIncomingData
     self.kaishi.handleAddedPeer = self.handleAddedPeer
     self.kaishi.handlePeerNickname = self.handlePeerNickname
