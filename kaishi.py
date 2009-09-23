@@ -32,7 +32,7 @@ class kaishi(object):
     self.peers = []
     self.uidlist = []
     self.provider = ''
-    self.host = urllib.urlopen('http://www.showmyip.com/simple/').read()
+    self.host = urllib.urlopen('http://ip.paq.cc/').read()
     self.port = 44545
     self.peerid = self.host + ':' + str(self.port)
 
